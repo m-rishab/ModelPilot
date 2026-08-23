@@ -10,5 +10,5 @@ import os
 
 NVIDIA_API_KEY = os.getenv(
     "NVIDIA_API_KEY",
-    "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",
+    "Add your [API_KEY]",
 )
