@@ -1,0 +1,11 @@
+# ModelPilot — backend dependencies
+# Install with: pip install -r requirements.txt
+fastapi>=0.110
+uvicorn[standard]>=0.29
+openai>=1.30
+pydantic>=2.7
+
+# Optional: only needed when swapping the heuristic router for a trained model
+# (see DifficultyRouter(model_path=...) in router.py)
+# xgboost>=2.0
+# scikit-learn>=1.4

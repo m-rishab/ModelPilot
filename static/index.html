@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ModelPilot — Intelligent Cost-Aware AI Routing</title>
+  <meta name="description" content="ModelPilot scores prompts in real time and routes to the cheapest capable NVIDIA NIM model." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.5/dist/purify.min.js" defer></script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Cpath d='M10 22V10h5.2c2.9 0 4.8 1.7 4.8 4.3 0 2.6-1.9 4.3-4.8 4.3H13V22h-3zm3-7.2h2c1.3 0 2-.7 2-1.5s-.7-1.5-2-1.5h-2v3z' fill='white'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <!-- Ambient Interactive Background Canvas -->
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <div class="app-layout">
+    <!-- ================= Top Navigation Bar ================= -->
+    <header class="navbar">
+      <div class="navbar-brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+            <rect width="32" height="32" rx="9" fill="url(#brandGrad)" />
+            <path d="M10 22.5v-13h5.4c3 0 5 1.8 5 4.5s-2 4.5-5 4.5H13.2v4H10zm3.2-6.9h2.1c1.3 0 2.1-.7 2.1-1.6s-.8-1.6-2.1-1.6h-2.1v3.2z" fill="#fff" />
+            <defs>
+              <linearGradient id="brandGrad" x1="0" y1="0" x2="32" y2="32">
+                <stop stop-color="#4f46e5" /><stop offset="50%" stop-color="#7c3aed" /><stop offset="100%" stop-color="#06b6d4" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <div class="brand-name-wrap">
+            <span class="brand-name">ModelPilot</span>
+            <span class="status-badge"><span class="pulse-dot"></span>NVIDIA NIM</span>
+          </div>
+          <span class="brand-tagline">Cost-Aware Multi-Model AI Routing</span>
+        </div>
+      </div>
+
+      <div class="navbar-metrics">
+        <div class="metric-pill">
+          <span class="metric-pill-label">Requests</span>
+          <span class="metric-pill-val mono" id="stat-requests">0</span>
+        </div>
+        <div class="metric-pill">
+          <span class="metric-pill-label">Tokens</span>
+          <span class="metric-pill-val mono" id="stat-tokens">0</span>
+        </div>
+        <div class="metric-pill metric-pill-highlight">
+          <span class="metric-pill-label">Est. Spend</span>
+          <span class="metric-pill-val mono" id="stat-spend">$0.0000</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ================= Main Studio Workspace ================= -->
+    <main class="studio-workspace">
+
+      <!-- ---- Left Column: Prompt Studio & Fleet ---- -->
+      <aside class="studio-sidebar">
+        <!-- Unified Prompt Studio Card -->
+        <div class="studio-card prompt-studio-card">
+          <div class="card-header">
+            <div class="card-heading">
+              <span class="heading-icon">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </span>
+              <h3>Prompt Studio</h3>
+            </div>
+            <div class="prompt-meta-wrap">
+              <span class="meta-pill mono" id="prompt-meta">0 words</span>
+              <button type="button" class="btn-clean" id="clear-prompt-btn" title="Clear (Esc)">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="textarea-box">
+            <textarea
+              id="prompt-input"
+              class="studio-textarea"
+              rows="6"
+              placeholder="Ask anything… ModelPilot calculates prompt complexity in real time and routes to the cheapest capable model tier."
+              spellcheck="false"
+            ></textarea>
+          </div>
+
+          <!-- Quick Prompts Row -->
+          <div class="preset-row">
+            <span class="preset-label">Test:</span>
+            <button type="button" class="preset-pill" data-example="light">
+              <span class="preset-dot t1"></span>Light Query
+            </button>
+            <button type="button" class="preset-pill" data-example="code">
+              <span class="preset-dot t2"></span>Code + JSON
+            </button>
+            <button type="button" class="preset-pill" data-example="deep">
+              <span class="preset-dot t3"></span>Deep Analysis
+            </button>
+          </div>
+
+          <!-- Live Routing Meter -->
+          <div class="routing-meter-box">
+            <div class="meter-top">
+              <div class="meter-score-row">
+                <span class="meter-label">Difficulty Score</span>
+                <div class="meter-score-val">
+                  <span class="mono" id="preview-score-value">0</span>
+                  <span class="meter-max">/100</span>
+                </div>
+              </div>
+              <span class="tier-badge tier-1" id="preview-tier-chip">Tier 1</span>
+            </div>
+
+            <div class="meter-track">
+              <div class="meter-fill tier-1" id="preview-score-fill" style="width: 0%;"></div>
+              <div class="meter-tick" style="left: 33%;"></div>
+              <div class="meter-tick" style="left: 66%;"></div>
+            </div>
+
+            <div class="meter-destination">
+              <span class="dest-label">Routed Model:</span>
+              <span class="dest-model mono" id="preview-model-name">GPT-OSS 20B</span>
+              <span class="dest-price mono" id="preview-model-price">$0.10 / 1M</span>
+            </div>
+
+            <div class="signals-wrap" id="signals-wrap">
+              <div class="signals-list" id="preview-signals"></div>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="button" class="btn-route" id="submit-btn">
+            <span class="btn-route-text">
+              <span>Route Prompt</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
+                <line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </span>
+            <span class="btn-spinner" aria-hidden="true"></span>
+          </button>
+          <div class="shortcut-caption">
+            <kbd>⌘</kbd> / <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to submit
+          </div>
+        </div>
+
+        <!-- Model Fleet Breakdown Card -->
+        <div class="studio-card fleet-studio-card">
+          <div class="card-header">
+            <div class="card-heading">
+              <span class="heading-icon fleet-icon">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                  <polyline points="2 17 12 22 22 17"></polyline>
+                  <polyline points="2 12 12 17 22 12"></polyline>
+                </svg>
+              </span>
+              <h3>NVIDIA Model Fleet</h3>
+            </div>
+            <span class="fleet-active-tag">3 Tiers</span>
+          </div>
+
+          <div class="fleet-container">
+            <div class="fleet-row" data-tier="1">
+              <span class="tier-tag t1">T1</span>
+              <div class="fleet-details">
+                <div class="fleet-name-line">
+                  <span class="fleet-name">GPT-OSS 20B</span>
+                  <span class="fleet-type">Frugal</span>
+                </div>
+                <span class="fleet-model-id mono">openai/gpt-oss-20b</span>
+              </div>
+              <span class="fleet-rate mono">$0.10<small>/1M</small></span>
+            </div>
+
+            <div class="fleet-row" data-tier="2">
+              <span class="tier-tag t2">T2</span>
+              <div class="fleet-details">
+                <div class="fleet-name-line">
+                  <span class="fleet-name">Llama 3.1 70B</span>
+                  <span class="fleet-type">Code & JSON</span>
+                </div>
+                <span class="fleet-model-id mono">meta/llama-3.1-70b-instruct</span>
+              </div>
+              <span class="fleet-rate mono">$0.40<small>/1M</small></span>
+            </div>
+
+            <div class="fleet-row" data-tier="3">
+              <span class="tier-tag t3">T3</span>
+              <div class="fleet-details">
+                <div class="fleet-name-line">
+                  <span class="fleet-name">Llama 3.1 70B (Deep)</span>
+                  <span class="fleet-type">Deep Reasoning</span>
+                </div>
+                <span class="fleet-model-id mono">meta/llama-3.1-70b-instruct</span>
+              </div>
+              <span class="fleet-rate mono">$0.80<small>/1M</small></span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ---- Right Column: Response Canvas ---- -->
+      <section class="studio-canvas">
+        <div class="studio-card canvas-card is-empty" id="canvas-card">
+          <!-- Canvas Top Action Bar (Visible when output is available) -->
+          <div class="canvas-header" id="canvas-header">
+            <div class="canvas-meta-group">
+              <div class="active-model-badge" id="tele-model-badge">
+                <span class="model-led"></span>
+                <span class="active-model-title" id="tele-model-name">Awaiting Request</span>
+              </div>
+              <div class="telemetry-chips" id="response-meta" hidden></div>
+            </div>
+
+            <div class="canvas-actions">
+              <div class="savings-chip" id="savings-banner" hidden>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+                <span id="savings-text">Saved vs Tier-3</span>
+              </div>
+              <button type="button" class="btn-copy-resp" id="copy-btn" hidden title="Copy formatted markdown response">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="12" height="12" rx="2.5" /><path d="M5 15H4.5A2.5 2.5 0 0 1 2 12.5v-8A2.5 2.5 0 0 1 4.5 2h8A2.5 2.5 0 0 1 15 4.5V5" />
+                </svg>
+                <span>Copy Response</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Empty Canvas State -->
+          <div class="canvas-empty" id="response-empty">
+            <div class="empty-halo">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
+                <path d="M19 15l.9 2.4L22 18.3l-2.1.9L19 21.5l-.9-2.3-2.1-.9 2.1-.9z" />
+              </svg>
+            </div>
+            <h4>ModelPilot Response Canvas</h4>
+            <p>Enter a prompt on the left to watch cost-aware routing dynamically evaluate complexity, select the optimal model tier, and stream output here.</p>
+          </div>
+
+          <!-- Loading State -->
+          <div class="canvas-loading" id="response-loading" hidden>
+            <div class="loading-rings">
+              <div class="ring-orbit ring-1"></div>
+              <div class="ring-orbit ring-2"></div>
+              <div class="ring-center"></div>
+            </div>
+            <h4 class="loading-text" id="loading-label">Evaluating prompt complexity…</h4>
+            <span class="loading-sub">Streaming from NVIDIA NIM inference endpoint</span>
+          </div>
+
+          <!-- Formatted Markdown Response Body -->
+          <article class="markdown-article" id="response-body" hidden></article>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>ModelPilot · Autonomous Cost-Aware Multi-Model AI Routing · SQLite Persistence via <span class="mono">modelpilot.db</span></p>
+    </footer>
+  </div>
+
+  <div id="toast-stack" aria-live="polite"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
