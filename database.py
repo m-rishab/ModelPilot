@@ -5,11 +5,6 @@ ModelPilot — SQLite persistence layer
 Every completed request is logged to a local `modelpilot.db` (table: `logs`).
 Connections are opened per operation and serialized with a lock because
 FastAPI serves sync endpoints from a thread pool.
-
-Schema:
-    logs(id, created_at, prompt_snippet, full_prompt, prompt_words,
-         routing_score, tier, model_selected, latency_ms,
-         tokens_in, tokens_out, cost_usd)
 """
 
 from __future__ import annotations
@@ -35,9 +30,21 @@ CREATE TABLE IF NOT EXISTS logs (
     latency_ms      REAL    NOT NULL,
     tokens_in       INTEGER NOT NULL,
     tokens_out      INTEGER NOT NULL,
-    cost_usd        REAL    NOT NULL
+    cost_usd        REAL    NOT NULL,
+    favorites       INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS prompt_history (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at      TEXT    NOT NULL,
+    full_prompt     TEXT    NOT NULL,
+    routing_score   INTEGER NOT NULL,
+    tier            INTEGER NOT NULL,
+    model_selected  TEXT    NOT NULL,
+    use_count       INTEGER DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_history_created_at ON prompt_history (created_at DESC);
 """
 
 _write_lock = threading.Lock()
@@ -50,28 +57,26 @@ def _raw_connect() -> sqlite3.Connection:
 
 
 def _connect() -> sqlite3.Connection:
-    """Open a connection, self-healing the schema if the db file vanished.
-
-    The table is normally created at startup (init_db), but if modelpilot.db
-    is deleted while the server is running, SQLite silently recreates an
-    empty file on the next connect — so recreate the schema here instead of
-    letting requests fail with "no such table".
-    """
     conn = _raw_connect()
     try:
         conn.execute("SELECT 1 FROM logs LIMIT 1").fetchall()
+        conn.execute("SELECT 1 FROM prompt_history LIMIT 1").fetchall()
         return conn
     except sqlite3.OperationalError:
         conn.close()
         conn = _raw_connect()
-        conn.executescript(_SCHEMA)  # CREATE IF NOT EXISTS — safe if raced
+        conn.executescript(_SCHEMA)
         return conn
 
 
 def init_db() -> None:
-    """Create the logs table (idempotent — safe on every startup)."""
     with _write_lock, _raw_connect() as conn:
         conn.executescript(_SCHEMA)
+        # Migration: add favorites column if missing
+        try:
+            conn.execute("SELECT favorites FROM logs LIMIT 1")
+        except sqlite3.OperationalError:
+            conn.execute("ALTER TABLE logs ADD COLUMN favorites INTEGER DEFAULT 0")
 
 
 def insert_log(
@@ -85,7 +90,6 @@ def insert_log(
     tokens_out: int,
     cost_usd: float,
 ) -> int:
-    """Persist one completed request; returns the new row id."""
     snippet = " ".join(full_prompt.split())[:120] or "(empty prompt)"
     created_at = datetime.now().astimezone().isoformat(timespec="seconds")
     with _write_lock, _connect() as conn:
@@ -116,12 +120,15 @@ def insert_log(
 
 def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     record = dict(row)
-    record.pop("full_prompt", None)  # keep payloads light for the dashboard
+    record.pop("full_prompt", None)
     return record
 
 
+def _row_to_dict_full(row: sqlite3.Row) -> dict[str, Any]:
+    return dict(row)
+
+
 def get_recent_logs(limit: int = 20) -> list[dict[str, Any]]:
-    """Newest-first request log (default: last 20)."""
     with _connect() as conn:
         rows = conn.execute(
             "SELECT * FROM logs ORDER BY id DESC LIMIT ?", (int(limit),)
@@ -130,7 +137,6 @@ def get_recent_logs(limit: int = 20) -> list[dict[str, Any]]:
 
 
 def get_aggregate_stats() -> dict[str, Any]:
-    """Session-wide totals powering the dashboard header chips."""
     with _connect() as conn:
         totals = conn.execute(
             """
@@ -159,7 +165,76 @@ def get_aggregate_stats() -> dict[str, Any]:
     }
 
 
-if __name__ == "__main__":  # manual sanity check: python database.py
+# --- Favorites ---
+
+def toggle_favorite(log_id: int) -> bool:
+    with _write_lock, _connect() as conn:
+        row = conn.execute("SELECT favorites FROM logs WHERE id = ?", (log_id,)).fetchone()
+        if not row:
+            return False
+        new_val = 0 if row["favorites"] else 1
+        conn.execute("UPDATE logs SET favorites = ? WHERE id = ?", (new_val, log_id))
+        return bool(new_val)
+
+
+def get_favorites() -> list[dict[str, Any]]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM logs WHERE favorites = 1 ORDER BY id DESC LIMIT 50"
+        ).fetchall()
+    return [_row_to_dict(row) for row in rows]
+
+
+# --- Prompt History ---
+
+def save_prompt_history(
+    *,
+    full_prompt: str,
+    routing_score: int,
+    tier: int,
+    model_selected: str,
+) -> int:
+    created_at = datetime.now().astimezone().isoformat(timespec="seconds")
+    with _write_lock, _connect() as conn:
+        existing = conn.execute(
+            "SELECT id, use_count FROM prompt_history WHERE full_prompt = ?",
+            (full_prompt.strip(),),
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE prompt_history SET use_count = ?, routing_score = ?, tier = ?, model_selected = ? WHERE id = ?",
+                (existing["use_count"] + 1, routing_score, tier, model_selected, existing["id"]),
+            )
+            return existing["id"]
+        cursor = conn.execute(
+            """
+            INSERT INTO prompt_history (created_at, full_prompt, routing_score, tier, model_selected)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (created_at, full_prompt.strip(), routing_score, tier, model_selected),
+        )
+        return int(cursor.lastrowid or 0)
+
+
+def get_prompt_history(limit: int = 50) -> list[dict[str, Any]]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, created_at, full_prompt, routing_score, tier, model_selected, use_count FROM prompt_history ORDER BY use_count DESC, id DESC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def search_prompt_history(query: str, limit: int = 20) -> list[dict[str, Any]]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, created_at, full_prompt, routing_score, tier, model_selected, use_count FROM prompt_history WHERE full_prompt LIKE ? ORDER BY use_count DESC LIMIT ?",
+            (f"%{query}%", int(limit)),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+if __name__ == "__main__":
     init_db()
     new_id = insert_log(
         full_prompt="smoke test prompt",

@@ -9,3 +9,4 @@ venv/
 myenv/
 .DS_Store
 .ipynb_checkpoints/
+modelpilot.db

@@ -4,6 +4,7 @@ fastapi>=0.110
 uvicorn[standard]>=0.29
 openai>=1.30
 pydantic>=2.7
+python-dotenv>=1.0
 
 # Optional: only needed when swapping the heuristic router for a trained model
 # (see DifficultyRouter(model_path=...) in router.py)

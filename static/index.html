@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,18 +7,17 @@
   <meta name="description" content="ModelPilot scores prompts in real time and routes to the cheapest capable NVIDIA NIM model." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.5/dist/purify.min.js" defer></script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Cpath d='M10 22V10h5.2c2.9 0 4.8 1.7 4.8 4.3 0 2.6-1.9 4.3-4.8 4.3H13V22h-3zm3-7.2h2c1.3 0 2-.7 2-1.5s-.7-1.5-2-1.5h-2v3z' fill='white'/%3E%3C/svg%3E" />
 </head>
 <body>
-  <!-- Ambient Interactive Background Canvas -->
   <canvas id="bg-canvas" aria-hidden="true"></canvas>
 
   <div class="app-layout">
-    <!-- ================= Top Navigation Bar ================= -->
+    <!-- Top Navigation Bar -->
     <header class="navbar">
       <div class="navbar-brand">
         <div class="brand-logo" aria-hidden="true">
@@ -41,73 +40,64 @@
         </div>
       </div>
 
-      <div class="navbar-metrics">
-        <div class="metric-pill">
-          <span class="metric-pill-label">Requests</span>
-          <span class="metric-pill-val mono" id="stat-requests">0</span>
+      <div class="navbar-actions">
+        <div class="navbar-metrics">
+          <div class="metric-pill">
+            <span class="metric-pill-label">Requests</span>
+            <span class="metric-pill-val mono" id="stat-requests">0</span>
+          </div>
+          <div class="metric-pill">
+            <span class="metric-pill-label">Tokens</span>
+            <span class="metric-pill-val mono" id="stat-tokens">0</span>
+          </div>
+          <div class="metric-pill metric-pill-highlight">
+            <span class="metric-pill-label">Est. Spend</span>
+            <span class="metric-pill-val mono" id="stat-spend">$0.0000</span>
+          </div>
         </div>
-        <div class="metric-pill">
-          <span class="metric-pill-label">Tokens</span>
-          <span class="metric-pill-val mono" id="stat-tokens">0</span>
-        </div>
-        <div class="metric-pill metric-pill-highlight">
-          <span class="metric-pill-label">Est. Spend</span>
-          <span class="metric-pill-val mono" id="stat-spend">$0.0000</span>
+        <div class="navbar-btns">
+          <button type="button" class="btn-icon" id="history-toggle-btn" title="Prompt History (Cmd+K)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </button>
+          <button type="button" class="btn-icon" id="theme-toggle" title="Toggle Dark Mode">
+            <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
         </div>
       </div>
     </header>
 
-    <!-- ================= Main Studio Workspace ================= -->
+    <!-- Main Studio Workspace -->
     <main class="studio-workspace">
-
-      <!-- ---- Left Column: Prompt Studio & Fleet ---- -->
+      <!-- Left Column -->
       <aside class="studio-sidebar">
-        <!-- Unified Prompt Studio Card -->
         <div class="studio-card prompt-studio-card">
           <div class="card-header">
             <div class="card-heading">
               <span class="heading-icon">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               </span>
               <h3>Prompt Studio</h3>
             </div>
             <div class="prompt-meta-wrap">
               <span class="meta-pill mono" id="prompt-meta">0 words</span>
               <button type="button" class="btn-clean" id="clear-prompt-btn" title="Clear (Esc)">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2">
-                  <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
           </div>
 
           <div class="textarea-box">
-            <textarea
-              id="prompt-input"
-              class="studio-textarea"
-              rows="6"
-              placeholder="Ask anything… ModelPilot calculates prompt complexity in real time and routes to the cheapest capable model tier."
-              spellcheck="false"
-            ></textarea>
+            <textarea id="prompt-input" class="studio-textarea" rows="6" placeholder="Ask anything..." spellcheck="false"></textarea>
           </div>
 
-          <!-- Quick Prompts Row -->
           <div class="preset-row">
             <span class="preset-label">Test:</span>
-            <button type="button" class="preset-pill" data-example="light">
-              <span class="preset-dot t1"></span>Light Query
-            </button>
-            <button type="button" class="preset-pill" data-example="code">
-              <span class="preset-dot t2"></span>Code + JSON
-            </button>
-            <button type="button" class="preset-pill" data-example="deep">
-              <span class="preset-dot t3"></span>Deep Analysis
-            </button>
+            <button type="button" class="preset-pill" data-example="light"><span class="preset-dot t1"></span>Light Query</button>
+            <button type="button" class="preset-pill" data-example="code"><span class="preset-dot t2"></span>Code + JSON</button>
+            <button type="button" class="preset-pill" data-example="deep"><span class="preset-dot t3"></span>Deep Analysis</button>
           </div>
 
-          <!-- Live Routing Meter -->
           <div class="routing-meter-box">
             <div class="meter-top">
               <div class="meter-score-row">
@@ -119,161 +109,202 @@
               </div>
               <span class="tier-badge tier-1" id="preview-tier-chip">Tier 1</span>
             </div>
-
             <div class="meter-track">
               <div class="meter-fill tier-1" id="preview-score-fill" style="width: 0%;"></div>
               <div class="meter-tick" style="left: 33%;"></div>
               <div class="meter-tick" style="left: 66%;"></div>
             </div>
-
             <div class="meter-destination">
               <span class="dest-label">Routed Model:</span>
               <span class="dest-model mono" id="preview-model-name">GPT-OSS 20B</span>
               <span class="dest-price mono" id="preview-model-price">$0.10 / 1M</span>
             </div>
-
             <div class="signals-wrap" id="signals-wrap">
               <div class="signals-list" id="preview-signals"></div>
             </div>
           </div>
 
-          <!-- Submit Button -->
-          <button type="button" class="btn-route" id="submit-btn">
-            <span class="btn-route-text">
-              <span>Route Prompt</span>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
-                <line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline>
-              </svg>
-            </span>
-            <span class="btn-spinner" aria-hidden="true"></span>
-          </button>
-          <div class="shortcut-caption">
-            <kbd>⌘</kbd> / <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to submit
+          <div class="btn-group">
+            <button type="button" class="btn-route" id="submit-btn">
+              <span class="btn-route-text"><span>Route Prompt</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+              <span class="btn-spinner" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="btn-compare" id="compare-btn" title="Compare Tiers">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="8" height="18" rx="1"/><rect x="14" y="3" width="8" height="18" rx="1"/></svg>
+            </button>
           </div>
+          <div class="shortcut-caption"><kbd>Cmd</kbd>/<kbd>Ctrl</kbd> + <kbd>Enter</kbd> to submit</div>
         </div>
 
-        <!-- Model Fleet Breakdown Card -->
         <div class="studio-card fleet-studio-card">
           <div class="card-header">
             <div class="card-heading">
               <span class="heading-icon fleet-icon">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                  <polyline points="2 17 12 22 22 17"></polyline>
-                  <polyline points="2 12 12 17 22 12"></polyline>
-                </svg>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
               </span>
               <h3>NVIDIA Model Fleet</h3>
             </div>
             <span class="fleet-active-tag">3 Tiers</span>
           </div>
-
           <div class="fleet-container">
-            <div class="fleet-row" data-tier="1">
-              <span class="tier-tag t1">T1</span>
-              <div class="fleet-details">
-                <div class="fleet-name-line">
-                  <span class="fleet-name">GPT-OSS 20B</span>
-                  <span class="fleet-type">Frugal</span>
-                </div>
-                <span class="fleet-model-id mono">openai/gpt-oss-20b</span>
-              </div>
-              <span class="fleet-rate mono">$0.10<small>/1M</small></span>
-            </div>
-
-            <div class="fleet-row" data-tier="2">
-              <span class="tier-tag t2">T2</span>
-              <div class="fleet-details">
-                <div class="fleet-name-line">
-                  <span class="fleet-name">Llama 3.1 70B</span>
-                  <span class="fleet-type">Code & JSON</span>
-                </div>
-                <span class="fleet-model-id mono">meta/llama-3.1-70b-instruct</span>
-              </div>
-              <span class="fleet-rate mono">$0.40<small>/1M</small></span>
-            </div>
-
-            <div class="fleet-row" data-tier="3">
-              <span class="tier-tag t3">T3</span>
-              <div class="fleet-details">
-                <div class="fleet-name-line">
-                  <span class="fleet-name">Llama 3.1 70B (Deep)</span>
-                  <span class="fleet-type">Deep Reasoning</span>
-                </div>
-                <span class="fleet-model-id mono">meta/llama-3.1-70b-instruct</span>
-              </div>
-              <span class="fleet-rate mono">$0.80<small>/1M</small></span>
-            </div>
+            <div class="fleet-row" data-tier="1"><span class="tier-tag t1">T1</span><div class="fleet-details"><div class="fleet-name-line"><span class="fleet-name">GPT-OSS 20B</span><span class="fleet-type">Frugal</span></div><span class="fleet-model-id mono">openai/gpt-oss-20b</span></div><span class="fleet-rate mono">$0.10<small>/1M</small></span></div>
+            <div class="fleet-row" data-tier="2"><span class="tier-tag t2">T2</span><div class="fleet-details"><div class="fleet-name-line"><span class="fleet-name">Llama 3.1 70B</span><span class="fleet-type">Code &amp; JSON</span></div><span class="fleet-model-id mono">meta/llama-3.1-70b-instruct</span></div><span class="fleet-rate mono">$0.40<small>/1M</small></span></div>
+            <div class="fleet-row" data-tier="3"><span class="tier-tag t3">T3</span><div class="fleet-details"><div class="fleet-name-line"><span class="fleet-name">Llama 3.1 70B (Deep)</span><span class="fleet-type">Deep Reasoning</span></div><span class="fleet-model-id mono">meta/llama-3.1-70b-instruct</span></div><span class="fleet-rate mono">$0.80<small>/1M</small></span></div>
           </div>
         </div>
       </aside>
 
-      <!-- ---- Right Column: Response Canvas ---- -->
+      <!-- Right Column -->
       <section class="studio-canvas">
+        <!-- Comparison mode container (hidden by default) -->
+        <div class="compare-container" id="compare-container" hidden>
+          <div class="compare-header">
+            <h3>Side-by-Side Comparison</h3>
+            <button type="button" class="btn-icon" id="compare-close-btn" title="Close comparison">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="compare-grid">
+            <div class="compare-panel" id="compare-panel-a">
+              <div class="compare-panel-header"><span class="tier-badge tier-1" id="compare-tier-a">Tier 1</span><span class="mono" id="compare-model-a">GPT-OSS 20B</span></div>
+              <div class="compare-panel-body" id="compare-body-a"><p class="compare-placeholder">Run comparison to see results</p></div>
+            </div>
+            <div class="compare-divider"></div>
+            <div class="compare-panel" id="compare-panel-b">
+              <div class="compare-panel-header"><span class="tier-badge tier-3" id="compare-tier-b">Tier 3</span><span class="mono" id="compare-model-b">Llama 3.1 70B (Deep)</span></div>
+              <div class="compare-panel-body" id="compare-body-b"><p class="compare-placeholder">Run comparison to see results</p></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Normal response canvas -->
         <div class="studio-card canvas-card is-empty" id="canvas-card">
-          <!-- Canvas Top Action Bar (Visible when output is available) -->
           <div class="canvas-header" id="canvas-header">
             <div class="canvas-meta-group">
-              <div class="active-model-badge" id="tele-model-badge">
-                <span class="model-led"></span>
-                <span class="active-model-title" id="tele-model-name">Awaiting Request</span>
-              </div>
+              <div class="active-model-badge" id="tele-model-badge"><span class="model-led"></span><span class="active-model-title" id="tele-model-name">Awaiting Request</span></div>
               <div class="telemetry-chips" id="response-meta" hidden></div>
             </div>
-
             <div class="canvas-actions">
               <div class="savings-chip" id="savings-banner" hidden>
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                </svg>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 <span id="savings-text">Saved vs Tier-3</span>
               </div>
-              <button type="button" class="btn-copy-resp" id="copy-btn" hidden title="Copy formatted markdown response">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="12" height="12" rx="2.5" /><path d="M5 15H4.5A2.5 2.5 0 0 1 2 12.5v-8A2.5 2.5 0 0 1 4.5 2h8A2.5 2.5 0 0 1 15 4.5V5" />
-                </svg>
-                <span>Copy Response</span>
+              <button type="button" class="btn-copy-resp" id="copy-btn" hidden title="Copy response">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M5 15H4.5A2.5 2.5 0 0 1 2 12.5v-8A2.5 2.5 0 0 1 4.5 2h8A2.5 2.5 0 0 1 15 4.5V5"/></svg>
+                <span>Copy</span>
               </button>
             </div>
           </div>
-
-          <!-- Empty Canvas State -->
           <div class="canvas-empty" id="response-empty">
             <div class="empty-halo">
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6">
-                <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
-                <path d="M19 15l.9 2.4L22 18.3l-2.1.9L19 21.5l-.9-2.3-2.1-.9 2.1-.9z" />
-              </svg>
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.4L22 18.3l-2.1.9L19 21.5l-.9-2.3-2.1-.9 2.1-.9z"/></svg>
             </div>
             <h4>ModelPilot Response Canvas</h4>
             <p>Enter a prompt on the left to watch cost-aware routing dynamically evaluate complexity, select the optimal model tier, and stream output here.</p>
           </div>
-
-          <!-- Loading State -->
           <div class="canvas-loading" id="response-loading" hidden>
             <div class="loading-rings">
               <div class="ring-orbit ring-1"></div>
               <div class="ring-orbit ring-2"></div>
               <div class="ring-center"></div>
             </div>
-            <h4 class="loading-text" id="loading-label">Evaluating prompt complexity…</h4>
+            <h4 class="loading-text" id="loading-label">Evaluating prompt complexity...</h4>
             <span class="loading-sub">Streaming from NVIDIA NIM inference endpoint</span>
           </div>
-
-          <!-- Formatted Markdown Response Body -->
           <article class="markdown-article" id="response-body" hidden></article>
+        </div>
+
+        <!-- Connection lost banner -->
+        <div class="connection-banner" id="connection-banner" hidden>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+          <span>Connection lost. <button type="button" class="banner-link" id="retry-btn">Retry</button></span>
         </div>
       </section>
     </main>
 
-    <!-- Footer -->
+    <!-- Request History Table -->
+    <section class="history-section" id="history-section">
+      <div class="studio-card">
+        <div class="card-header">
+          <div class="card-heading">
+            <span class="heading-icon">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </span>
+            <h3>Request History</h3>
+          </div>
+          <button type="button" class="btn-sm" id="refresh-logs-btn">Refresh</button>
+        </div>
+        <div class="logs-table-wrap">
+          <table class="logs-table" id="logs-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Prompt</th>
+                <th>Score</th>
+                <th>Tier</th>
+                <th>Model</th>
+                <th>Tokens</th>
+                <th>Latency</th>
+                <th>Cost</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="logs-tbody">
+              <tr><td colspan="9" class="logs-empty">No requests yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <footer class="app-footer">
-      <p>ModelPilot · Autonomous Cost-Aware Multi-Model AI Routing · SQLite Persistence via <span class="mono">modelpilot.db</span></p>
+      <p>ModelPilot &middot; Cost-Aware Multi-Model AI Routing &middot; SQLite via <span class="mono">modelpilot.db</span></p>
     </footer>
   </div>
 
-  <div id="toast-stack" aria-live="polite"></div>
+  <!-- Command Palette (Cmd+K) -->
+  <div class="command-palette-overlay" id="cmd-overlay" hidden>
+    <div class="command-palette">
+      <div class="cmd-search-row">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="cmd-input" class="cmd-input" placeholder="Search prompt history..." autocomplete="off" />
+        <kbd class="cmd-esc">Esc</kbd>
+      </div>
+      <div class="cmd-results" id="cmd-results">
+        <p class="cmd-empty">Type to search your prompt history</p>
+      </div>
+    </div>
+  </div>
 
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settings-overlay" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Settings</h3>
+        <button type="button" class="btn-icon" id="settings-close-btn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-group">
+          <label class="setting-label">NVIDIA API Key</label>
+          <p class="setting-desc">Loaded from .env file on the server</p>
+          <div class="api-key-display" id="api-key-display">Loading...</div>
+        </div>
+        <div class="setting-group">
+          <label class="setting-label">Default Temperature</label>
+          <input type="range" id="setting-temp" min="0" max="1" step="0.1" value="0.6" class="setting-range" />
+          <span class="setting-val" id="setting-temp-val">0.6</span>
+        </div>
+        <div class="setting-group">
+          <label class="setting-label">Max Tokens</label>
+          <input type="number" id="setting-max-tokens" value="1024" min="64" max="8192" class="setting-input" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-stack" aria-live="polite"></div>
   <script src="/static/app.js"></script>
 </body>
 </html>
